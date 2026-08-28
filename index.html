@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Évaluation Savoir Nager</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- ICONES ET MÉTADONNÉES POUR ÉCRAN D'ACCUEIL IPAD / IOS -->
+    <link rel="apple-touch-icon" href="logo.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="logo.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="logo.png">
+    <link rel="icon" type="image/png" href="logo.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Éval ASNS">
+
+    <style>
+        /* Optimisations pour iPad / tactile & Fond d'écran */
+        body {
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+            background-image: url('fdecran.jpg');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            background-repeat: no-repeat;
+        }
+
+        .grid-cell {
+            transition: all 0.2s ease-in-out;
+            cursor: pointer;
+        }
+
+        .grid-cell:active {
+            transform: scale(0.98);
+        }
+
+        .hide {
+            display: none !important;
+        }
+
+        .glass-card {
+            background-color: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+        }
+
+        /* Effet de verre dépoli (Glassmorphism) pour les cartes de classes */
+        .glass-class-card {
+            background: rgba(255, 255, 255, 0.45);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.7);
+            box-shadow: 0 8px 32px 0 rgba(0, 40, 100, 0.15);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .glass-class-card:hover {
+            background: rgba(255, 255, 255, 0.75);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-color: rgba(255, 255, 255, 0.95);
+            box-shadow: 0 12px 40px 0 rgba(0, 40, 100, 0.25);
+            transform: translateY(-4px) scale(1.02);
+        }
+    </style>
+</head>
+
+<body class="text-gray-800 font-sans antialiased min-h-screen pb-20">
+
+    <!-- HEADER -->
+    <header class="pt-6 pb-4 px-4 max-w-5xl mx-auto flex flex-col items-center justify-center relative z-10">
+        <img src="logo.png" alt="Logo Évaluation Savoir Nager"
+            class="w-20 h-20 md:w-28 md:h-28 mb-3 object-contain drop-shadow-[0_4px_12px_rgba(0,0,0,0.5)] transition-transform hover:scale-105">
+        <h1 class="text-4xl md:text-6xl font-black text-center text-white tracking-tight drop-shadow-[0_2px_10px_rgba(0,0,0,0.8)]"
+            id="app-title">
+            Évaluation Savoir Nager
+        </h1>
+        <div id="nav-buttons" class="mt-4 flex gap-3 justify-center">
+            <button id="btn-home"
+                class="hide bg-blue-800/90 hover:bg-blue-900 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg backdrop-blur-md border border-white/30 transition-all hover:scale-105 active:scale-95">Accueil</button>
+            <button id="btn-back-class"
+                class="hide bg-blue-800/90 hover:bg-blue-900 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg backdrop-blur-md border border-white/30 transition-all hover:scale-105 active:scale-95">Retour
+                Classe</button>
+        </div>
+    </header>
+
+    <!-- VIEW: HOME -->
+    <main id="view-home" class="p-6 max-w-5xl mx-auto">
+        <div class="mb-6 flex justify-start">
+            <label
+                class="bg-green-200 hover:bg-green-300 text-green-950 px-6 py-3 rounded-xl font-bold shadow-md cursor-pointer text-center transition-all hover:scale-105 active:scale-95 border border-green-300/80 inline-block">
+                + Ajouter une classe (Excel)
+                <input type="file" id="import-excel" accept=".xlsx, .xls" class="hidden">
+            </label>
+        </div>
+
+        <h2 class="text-2xl md:text-3xl font-extrabold text-white mb-6 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+            Mes Classes</h2>
+
+        <div id="classes-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-12">
+            <!-- Rempli par JS -->
+        </div>
+    </main>
+
+    <!-- VIEW: CLASS -->
+    <main id="view-class" class="hide p-6 max-w-5xl mx-auto">
+        <div class="flex justify-between items-center mb-6">
+            <h2 id="class-title" class="text-3xl font-bold text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+                Classe</h2>
+            <button onclick="showResults()"
+                class="bg-purple-600 hover:bg-purple-700 text-white px-5 py-3 rounded-xl font-bold shadow-lg transition-all hover:scale-105 border border-white/20">
+                📊 Tableau des résultats
+            </button>
+        </div>
+        <div id="students-list" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            <!-- Rempli par JS -->
+        </div>
+    </main>
+
+    <!-- VIEW: STUDENT EVALUATION -->
+    <main id="view-student" class="hide p-2 md:p-6 max-w-7xl mx-auto">
+        <h2 id="student-name"
+            class="text-3xl font-black text-white mb-6 text-center drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+            Élève</h2>
+
+        <div class="overflow-x-auto glass-card rounded-2xl shadow-xl mb-6">
+            <table class="w-full text-sm md:text-base text-center border-collapse">
+                <thead>
+                    <tr class="bg-gray-100/90 border-b-2 border-gray-300">
+                        <th class="p-3 text-left w-1/5 font-extrabold text-gray-800">Action</th>
+                        <th class="p-3 w-1/5 bg-red-200/90 text-red-950 font-bold">Niveau 1 (1 pt)</th>
+                        <th class="p-3 w-1/5 bg-yellow-200/90 text-yellow-950 font-bold">Niveau 2 (2 pts)</th>
+                        <th class="p-3 w-1/5 bg-green-200/90 text-green-950 font-bold">Niveau 3 (3 pts)</th>
+                        <th class="p-3 w-1/5 bg-green-700 text-white font-bold">Niveau 4 (4 pts)</th>
+                    </tr>
+                </thead>
+                <tbody id="eval-grid" class="divide-y divide-gray-200/80 bg-white/70">
+                    <!-- Rempli par JS -->
+                </tbody>
+            </table>
+        </div>
+
+        <div class="glass-card p-6 rounded-2xl shadow-xl flex flex-col md:flex-row justify-between items-center gap-6">
+            <div class="text-xl font-bold text-gray-800">Total : <span id="student-total"
+                    class="text-blue-700 text-3xl font-black">0</span> / 48
+            </div>
+            <div class="flex items-center gap-2">
+                <label class="font-bold text-gray-800">Test ASNS :</label>
+                <select id="student-asns"
+                    class="bg-white border border-gray-300 text-gray-900 rounded-xl p-2.5 font-bold shadow-sm focus:ring-blue-500 focus:border-blue-500 cursor-pointer transition-all"
+                    onchange="updateStudentASNS(this.value)">
+                    <option id="opt-asns-auto" value="auto">Auto (Calculé)</option>
+                    <option value="true">OBTENU</option>
+                    <option value="false">Non obtenu</option>
+                </select>
+            </div>
+            <div class="flex items-center gap-2">
+                <label class="font-bold text-gray-800">Groupe :</label>
+                <select id="student-group"
+                    class="bg-white border border-gray-300 text-gray-900 rounded-xl p-2.5 font-semibold focus:ring-blue-500 focus:border-blue-500 shadow-sm cursor-pointer"
+                    onchange="updateStudentGroup(this.value)">
+                    <option value="">-- À définir --</option>
+                    <option value="Non nageur">Non nageur</option>
+                    <option value="Nageur débutant">Nageur débutant</option>
+                    <option value="Nageur expert">Nageur expert</option>
+                </select>
+            </div>
+        </div>
+    </main>
+
+    <!-- VIEW: RESULTS TABLE -->
+    <main id="view-results" class="hide p-6 max-w-6xl mx-auto">
+        <div class="flex justify-between items-center mb-6">
+            <h2 id="results-title" class="text-3xl font-bold text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+                Résultats</h2>
+            <button onclick="exportCSV()"
+                class="bg-green-600 hover:bg-green-700 text-white px-5 py-3 rounded-xl font-bold shadow-lg transition-all hover:scale-105 border border-white/20">
+                📥 Exporter en CSV
+            </button>
+        </div>
+
+        <div class="glass-card rounded-2xl shadow-xl overflow-x-auto">
+            <table class="w-full text-left">
+                <thead class="bg-gray-100/90 border-b border-gray-300">
+                    <tr>
+                        <th class="p-4 font-extrabold text-gray-800">Nom Prénom</th>
+                        <th class="p-4 font-extrabold text-gray-800 text-center">Score Total</th>
+                        <th class="p-4 font-extrabold text-gray-800 text-center">Résultat ASNS</th>
+                        <th class="p-4 font-extrabold text-gray-800">Groupe prévu</th>
+                    </tr>
+                </thead>
+                <tbody id="results-tbody" class="divide-y divide-gray-200/80 bg-white/70">
+                    <!-- Rempli par JS -->
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <script>
+        // --- DONNÉES DE LA GRILLE D'ÉVALUATION ---
+        const evaluationCriteria = [
+            { action: "Bascule arrière", levels: ["A l'échelle", "Saut en avant", "Saut arrière mais pas bascule", "Bascule"] },
+            { action: "Déplacement jusqu'au tapis", levels: ["X", "Accroche le bord", "Accroche le tapis", "Avance sans appuis"] },
+            { action: "Immersion (passage sous tapis)", levels: ["Refus", "Touche avec épaules/tête et ou fesses", "Touche avec les pieds", "Immersion ok"] },
+            { action: "Déplacement ventral", levels: ["Nage verticale en appuis sur le bord constant", "Nage hachée (fatigue ++)", "Déplacement en nage hybride", "Déplacement avec technique (crawl/brasse)"] },
+            { action: "Surplace vertical", levels: ["Moins de 5 secondes", "Entre 5 et 10 secondes", "Entre 10 et 15 secondes", "Tient les 15 secondes"] },
+            { action: "Reprise de nage ventrale", levels: ["S'accroche au bord, pause avant de repartir", "S'accroche au bord pour repartir (sans pause)", "Reprise sans toucher mais difficile", "Reprise de nage efficace (fluide)"] },
+            { action: "Demi-tour sans toucher", levels: ["X", "S'arrête, se met debout", "Touche", "Ne touche pas"] },
+            { action: "Nage dorsale", levels: ["Ne sait pas nager sur le dos", "Début d'alignement mais nage difficile", "Nage efficace hybride", "Nage fluide avec technique (dos crawlé)"] },
+            { action: "Etoile de mer", levels: ["Moins de 5 secondes", "Entre 5 et 10 sec (alignement se casse)", "Entre 10 et 15 sec (utilise jambes pour réaligner)", "Tient les 15 secondes"] },
+            { action: "Reprise de nage dorsale", levels: ["Ne repars pas", "Touche le fond du bassin pour repartir", "Reprise difficile, passe verticale", "Reprise de nage fluide"] },
+            { action: "Se retourner sur le ventre", levels: ["X", "S'arrête", "Se retourne mais s'appuie sur le tapis", "Se retourne"] },
+            { action: "Immersion retour", levels: ["Refus", "Touche avec épaules/tête et ou fesses", "Touche avec les pieds", "Immersion ok"] }
+        ];
+
+        // --- ÉTAT DE L'APPLICATION ---
+        let appData = JSON.parse(localStorage.getItem('savoirNagerData')) || { classes: [] };
+        let currentClassId = null;
+        let currentStudentId = null;
+
+        // --- SAUVEGARDE LOCALE ---
+        function saveData() {
+            localStorage.setItem('savoirNagerData', JSON.stringify(appData));
+        }
+
+        // --- GESTION DE L'INTERFACE (Vues) ---
+        const views = ['view-home', 'view-class', 'view-student', 'view-results'];
+
+        function showView(viewId) {
+            views.forEach(v => document.getElementById(v).classList.add('hide'));
+            document.getElementById(viewId).classList.remove('hide');
+
+            const btnHome = document.getElementById('btn-home');
+            const btnBackClass = document.getElementById('btn-back-class');
+            const btnReset = document.getElementById('btn-reset');
+
+            btnHome.classList.add('hide');
+            btnBackClass.classList.add('hide');
+
+            if (btnReset) {
+                if (viewId === 'view-home') btnReset.classList.remove('hide');
+                else btnReset.classList.add('hide');
+            }
+
+            if (viewId === 'view-class') btnHome.classList.remove('hide');
+            if (viewId === 'view-student' || viewId === 'view-results') btnBackClass.classList.remove('hide');
+
+            window.scrollTo(0, 0);
+        }
+
+        document.getElementById('btn-home').addEventListener('click', renderHome);
+        document.getElementById('btn-back-class').addEventListener('click', () => renderClass(currentClassId));
+
+        // --- VUE 1 : ACCUEIL ---
+        function renderHome() {
+            currentClassId = null;
+            currentStudentId = null;
+            const container = document.getElementById('classes-list');
+            container.innerHTML = '';
+
+            if (appData.classes.length === 0) {
+                container.innerHTML = `<p class="text-gray-700 italic col-span-full font-medium drop-shadow-[0_1px_2px_rgba(255,255,255,0.8)]">Aucune classe importée pour le moment.</p>`;
+            } else {
+                appData.classes.forEach(cls => {
+                    const btn = document.createElement('div');
+                    btn.className = "glass-class-card p-6 rounded-2xl cursor-pointer flex flex-col justify-center items-center text-center group";
+                    btn.innerHTML = `
+                        <h3 class="text-2xl font-black text-blue-950 group-hover:text-blue-700 transition-colors drop-shadow-[0_1px_2px_rgba(255,255,255,0.9)]">${cls.name}</h3>
+                        <p class="text-blue-950 font-bold mt-3 bg-white/50 px-3.5 py-1 rounded-full text-sm backdrop-blur-sm border border-white/50 shadow-sm">${cls.students.length} élève${cls.students.length > 1 ? 's' : ''}</p>
+                    `;
+                    btn.onclick = () => renderClass(cls.id);
+                    container.appendChild(btn);
+                });
+            }
+            showView('view-home');
+        }
+
+        // --- IMPORT EXCEL ---
+        document.getElementById('import-excel').addEventListener('change', function (e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const className = file.name.replace(/\.[^/.]+$/, ""); // Enlève l'extension
+            const reader = new FileReader();
+
+            reader.onload = function (event) {
+                const data = new Uint8Array(event.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                // {header: 1} force la sortie en tableau de tableaux
+                const rows = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+
+                let students = [];
+                // Cherche les indices des colonnes Nom et Prénom (tolère diverses casses)
+                let headerRow = rows[0].map(h => h ? String(h).toLowerCase().trim() : '');
+                let idxNom = headerRow.findIndex(h => h.includes('nom'));
+                let idxPrenom = headerRow.findIndex(h => h.includes('prénom') || h.includes('prenom'));
+
+                // Si l'entête n'est pas standard, on suppose Colonne 1 = Nom, Colonne 2 = Prénom
+                if (idxNom === -1) idxNom = 0;
+                if (idxPrenom === -1) idxPrenom = 1;
+
+                for (let i = 1; i < rows.length; i++) {
+                    const row = rows[i];
+                    if (row[idxNom] || row[idxPrenom]) {
+                        students.push({
+                            id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+                            nom: row[idxNom] || '',
+                            prenom: row[idxPrenom] || '',
+                            scores: {},
+                            total: 0,
+                            asns: false,
+                            groupe: ''
+                        });
+                    }
+                }
+
+                // Tri alphabétique par nom
+                students.sort((a, b) => a.nom.localeCompare(b.nom));
+
+                const newClass = {
+                    id: Date.now().toString(),
+                    name: className,
+                    students: students
+                };
+
+                appData.classes.push(newClass);
+                saveData();
+                renderHome();
+                e.target.value = ''; // Reset input
+                showCustomAlert(`Classe ${className} importée avec succès !`, "Importation réussie", "🎉");
+            };
+            reader.readAsArrayBuffer(file);
+        });
+
+        // --- VUE 2 : CLASSE ---
+        function renderClass(classId) {
+            currentClassId = classId;
+            const cls = appData.classes.find(c => c.id === classId);
+            if (!cls) return;
+
+            document.getElementById('class-title').innerText = `Classe : ${cls.name}`;
+            const container = document.getElementById('students-list');
+            container.innerHTML = '';
+
+            cls.students.forEach(student => {
+                const isEvaluated = Object.keys(student.scores).length > 0;
+                const statusColor = isEvaluated ? (student.asns ? 'bg-green-100/90 border-green-400' : 'bg-orange-100/90 border-orange-400') : 'glass-card border-white/60';
+
+                const card = document.createElement('div');
+                card.className = `p-4 rounded-2xl shadow-md border ${statusColor} backdrop-blur-md cursor-pointer hover:shadow-xl hover:scale-[1.03] transition-all text-center flex flex-col justify-center min-h-[100px]`;
+                card.innerHTML = `<span class="font-bold text-gray-800 block">${student.nom.toUpperCase()}</span><span class="text-gray-600 block">${student.prenom}</span>`;
+                card.onclick = () => renderStudent(student.id);
+                container.appendChild(card);
+            });
+
+            showView('view-class');
+        }
+
+        // --- VUE 3 : ÉVALUATION ÉLÈVE ---
+        function renderStudent(studentId) {
+            currentStudentId = studentId;
+            const cls = appData.classes.find(c => c.id === currentClassId);
+            const student = cls.students.find(s => s.id === studentId);
+
+            document.getElementById('student-name').innerText = `${student.nom.toUpperCase()} ${student.prenom}`;
+            document.getElementById('student-group').value = student.groupe || '';
+
+            const tbody = document.getElementById('eval-grid');
+            tbody.innerHTML = '';
+
+            evaluationCriteria.forEach((crit, rowIndex) => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-gray-50";
+
+                let html = `<td class="p-3 text-left font-semibold text-gray-700 bg-gray-50 border-r">${crit.action}</td>`;
+
+                crit.levels.forEach((desc, colIndex) => {
+                    const scoreValue = colIndex + 1;
+                    const isSelected = student.scores[rowIndex] === scoreValue;
+
+                    // Définition des couleurs actives en fonction de la colonne
+                    let activeColor = '';
+                    if (scoreValue === 1) activeColor = 'bg-red-400 text-white font-bold shadow-inner';
+                    else if (scoreValue === 2) activeColor = 'bg-yellow-400 text-yellow-900 font-bold shadow-inner';
+                    else if (scoreValue === 3) activeColor = 'bg-green-400 text-green-900 font-bold shadow-inner';
+                    else if (scoreValue === 4) activeColor = 'bg-green-700 text-white font-bold shadow-inner';
+
+                    const baseClass = "grid-cell p-3 border-r border-gray-200 align-middle text-sm";
+                    const finalClass = isSelected ? `${baseClass} ${activeColor}` : baseClass;
+
+                    html += `<td class="${finalClass}" onclick="setScore(${rowIndex}, ${scoreValue})">${desc}</td>`;
+                });
+
+                tr.innerHTML = html;
+                tbody.appendChild(tr);
+            });
+
+            updateStudentSummary(student);
+            if (document.getElementById('view-student').classList.contains('hide')) {
+                showView('view-student');
+            }
+        }
+
+        // Niveaux de maîtrise minimaux exigés par catégorie pour l'ASNS automatique :
+        const minASNSThresholds = [4, 4, 3, 3, 4, 3, 4, 3, 4, 3, 4, 3];
+
+        function computeAutoASNS(student) {
+            if (!student || !student.scores) return false;
+            if (Object.keys(student.scores).length < 12) return false;
+
+            for (let i = 0; i < 12; i++) {
+                const score = student.scores[i] || 0;
+                if (score < minASNSThresholds[i]) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        function setScore(rowIndex, scoreValue) {
+            const cls = appData.classes.find(c => c.id === currentClassId);
+            const student = cls.students.find(s => s.id === currentStudentId);
+
+            student.scores[rowIndex] = scoreValue;
+
+            // Auto-calcul Total
+            student.total = Object.values(student.scores).reduce((a, b) => a + b, 0);
+
+            // Auto-calcul ASNS si non surchargé manuellement
+            if (student.asnsManual === undefined || student.asnsManual === null) {
+                student.asns = computeAutoASNS(student);
+            }
+
+            // Auto-suggestion de groupe si non défini manuellement
+            if (Object.keys(student.scores).length === 12 && !student.groupe) {
+                if (student.total < 24) student.groupe = "Non nageur";
+                else if (student.total < 38) student.groupe = "Nageur débutant";
+                else student.groupe = "Nageur expert";
+
+                document.getElementById('student-group').value = student.groupe;
+            }
+
+            saveData();
+            renderStudent(currentStudentId); // Re-render pour afficher les couleurs
+        }
+
+        function updateStudentASNS(value) {
+            const cls = appData.classes.find(c => c.id === currentClassId);
+            const student = cls.students.find(s => s.id === currentStudentId);
+
+            if (value === 'auto') {
+                student.asnsManual = null;
+                student.asns = computeAutoASNS(student);
+            } else if (value === 'true') {
+                student.asnsManual = true;
+                student.asns = true;
+            } else if (value === 'false') {
+                student.asnsManual = false;
+                student.asns = false;
+            }
+
+            saveData();
+            updateStudentSummary(student);
+        }
+
+        function updateStudentGroup(value) {
+            const cls = appData.classes.find(c => c.id === currentClassId);
+            const student = cls.students.find(s => s.id === currentStudentId);
+            student.groupe = value;
+            saveData();
+        }
+
+        function updateStudentSummary(student) {
+            document.getElementById('student-total').innerText = student.total;
+            const asnsSelect = document.getElementById('student-asns');
+            const optAuto = document.getElementById('opt-asns-auto');
+
+            const isComplete = Object.keys(student.scores).length === 12;
+            const autoAsns = computeAutoASNS(student);
+            const autoLabel = !isComplete ? "Auto (En cours...)" : (autoAsns ? "Auto (OBTENU)" : "Auto (Non obtenu)");
+
+            if (optAuto) {
+                optAuto.innerText = autoLabel;
+            }
+
+            if (student.asnsManual === undefined || student.asnsManual === null) {
+                asnsSelect.value = "auto";
+                if (!isComplete) {
+                    asnsSelect.className = "bg-gray-100 border border-gray-300 text-gray-700 rounded-xl p-2.5 font-bold shadow-sm cursor-pointer";
+                } else if (student.asns) {
+                    asnsSelect.className = "bg-green-600 text-white rounded-xl p-2.5 font-bold shadow-sm cursor-pointer";
+                } else {
+                    asnsSelect.className = "bg-red-500 text-white rounded-xl p-2.5 font-bold shadow-sm cursor-pointer";
+                }
+            } else {
+                asnsSelect.value = student.asnsManual ? "true" : "false";
+                if (student.asns) {
+                    asnsSelect.className = "bg-green-600 text-white rounded-xl p-2.5 font-bold shadow-sm cursor-pointer";
+                } else {
+                    asnsSelect.className = "bg-red-500 text-white rounded-xl p-2.5 font-bold shadow-sm cursor-pointer";
+                }
+            }
+        }
+
+        // --- VUE 4 : TABLEAU DES RÉSULTATS ---
+        function showResults() {
+            const cls = appData.classes.find(c => c.id === currentClassId);
+            document.getElementById('results-title').innerText = `Résultats - ${cls.name}`;
+
+            const tbody = document.getElementById('results-tbody');
+            tbody.innerHTML = '';
+
+            cls.students.forEach(student => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-gray-50";
+
+                const isComplete = Object.keys(student.scores).length === 12;
+                const hasManual = (student.asnsManual !== undefined && student.asnsManual !== null);
+
+                let asnsBadge = `<span class="px-2 py-1 rounded bg-gray-200 text-xs">Incomplet</span>`;
+                if (isComplete || hasManual) {
+                    asnsBadge = student.asns
+                        ? `<span class="px-2.5 py-1 rounded-lg bg-green-200 text-green-900 font-bold">Validé${hasManual ? ' (M)' : ''}</span>`
+                        : `<span class="px-2.5 py-1 rounded-lg bg-red-200 text-red-900 font-bold">Non validé${hasManual ? ' (M)' : ''}</span>`;
+                }
+
+                tr.innerHTML = `
+                    <td class="p-4 border-b">${student.nom.toUpperCase()} ${student.prenom}</td>
+                    <td class="p-4 border-b text-center font-bold text-gray-600">${student.total} / 48</td>
+                    <td class="p-4 border-b text-center">${asnsBadge}</td>
+                    <td class="p-4 border-b font-medium text-gray-700">${student.groupe || '-'}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            showView('view-results');
+        }
+
+        // --- EXPORT CSV ---
+        function exportCSV() {
+            const cls = appData.classes.find(c => c.id === currentClassId);
+            let csvContent = "data:text/csv;charset=utf-8,";
+            csvContent += "Nom,Prenom,Total (sur 48),ASNS,Groupe Prevu\n";
+
+            cls.students.forEach(student => {
+                const isComplete = Object.keys(student.scores).length === 12;
+                const hasManual = (student.asnsManual !== undefined && student.asnsManual !== null);
+                const asnsStatus = (isComplete || hasManual) ? (student.asns ? "Valide" : "Non valide") : "Incomplet";
+                const row = [
+                    student.nom,
+                    student.prenom,
+                    student.total,
+                    asnsStatus,
+                    student.groupe
+                ].join(",");
+                csvContent += row + "\n";
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `Resultats_SavoirNager_${cls.name}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // --- EXPORT / IMPORT JSON COMPLET ---
+        function exportJSON() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(appData));
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            const date = new Date().toISOString().split('T')[0];
+            downloadAnchorNode.setAttribute("download", `SavoirNager_Backup_${date}.json`);
+            document.body.appendChild(downloadAnchorNode); // requis pour Firefox
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+        }
+
+        // --- SYSTÈME DE POPUP / MODAL CUSTOM (GLASSMORPHISM) ---
+        function showCustomAlert(message, title = "Information", icon = "ℹ️") {
+            return new Promise((resolve) => {
+                const modal = document.getElementById('custom-modal');
+                const titleEl = document.getElementById('modal-title');
+                const msgEl = document.getElementById('modal-message');
+                const iconEl = document.getElementById('modal-icon');
+                const btnConfirm = document.getElementById('modal-btn-confirm');
+                const btnCancel = document.getElementById('modal-btn-cancel');
+
+                titleEl.innerText = title;
+                msgEl.innerText = message;
+                iconEl.innerText = icon;
+                btnConfirm.innerText = "OK";
+                btnConfirm.className = "bg-blue-700 hover:bg-blue-800 text-white font-bold px-6 py-2.5 rounded-xl shadow-md transition-all active:scale-95 flex-1";
+                btnCancel.classList.add('hide');
+
+                modal.classList.remove('hide');
+
+                const handleConfirm = () => {
+                    modal.classList.add('hide');
+                    btnConfirm.removeEventListener('click', handleConfirm);
+                    resolve();
+                };
+
+                btnConfirm.addEventListener('click', handleConfirm);
+            });
+        }
+
+        function showCustomConfirm(message, title = "Confirmation", icon = "⚠️") {
+            return new Promise((resolve) => {
+                const modal = document.getElementById('custom-modal');
+                const titleEl = document.getElementById('modal-title');
+                const msgEl = document.getElementById('modal-message');
+                const iconEl = document.getElementById('modal-icon');
+                const btnConfirm = document.getElementById('modal-btn-confirm');
+                const btnCancel = document.getElementById('modal-btn-cancel');
+
+                titleEl.innerText = title;
+                msgEl.innerText = message;
+                iconEl.innerText = icon;
+                btnConfirm.innerText = "Confirmer";
+                btnConfirm.className = "bg-red-600 hover:bg-red-700 text-white font-bold px-6 py-2.5 rounded-xl shadow-md transition-all active:scale-95 flex-1";
+                btnCancel.className = "bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold px-6 py-2.5 rounded-xl shadow-md transition-all active:scale-95 flex-1";
+                btnCancel.classList.remove('hide');
+
+                modal.classList.remove('hide');
+
+                const handleConfirm = () => {
+                    modal.classList.add('hide');
+                    cleanup();
+                    resolve(true);
+                };
+
+                const handleCancel = () => {
+                    modal.classList.add('hide');
+                    cleanup();
+                    resolve(false);
+                };
+
+                const cleanup = () => {
+                    btnConfirm.removeEventListener('click', handleConfirm);
+                    btnCancel.removeEventListener('click', handleCancel);
+                };
+
+                btnConfirm.addEventListener('click', handleConfirm);
+                btnCancel.addEventListener('click', handleCancel);
+            });
+        }
+
+        function importJSON(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                try {
+                    const importedData = JSON.parse(e.target.result);
+                    if (importedData.classes) {
+                        appData = importedData;
+                        saveData();
+                        renderHome();
+                        showCustomAlert("Données chargées avec succès !", "Restauration réussie", "📥");
+                    } else {
+                        showCustomAlert("Format de fichier invalide.", "Erreur d'importation", "⚠️");
+                    }
+                } catch (err) {
+                    showCustomAlert("Erreur lors de la lecture du fichier JSON.", "Erreur d'importation", "❌");
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = ''; // Reset
+        }
+
+        // --- RÉINITIALISATION DES DONNÉES ---
+        async function resetData() {
+            const confirmed = await showCustomConfirm(
+                "Êtes-vous sûr de vouloir réinitialiser toutes les données ? Cette action supprimera définitivement toutes les classes et évaluations.",
+                "Réinitialisation",
+                "⚠️"
+            );
+            if (confirmed) {
+                localStorage.removeItem('savoirNagerData');
+                appData = { classes: [] };
+                renderHome();
+                showCustomAlert("Toutes les données de l'application ont été réinitialisées.", "Réinitialisé", "🗑️");
+            }
+        }
+
+        // --- INITIALISATION ---
+        renderHome();
+    </script>
+
+    <!-- BOUTONS D'ACTION FIXES EN BAS À DROITE -->
+    <div class="fixed bottom-4 right-4 z-50 flex gap-2">
+        <button id="btn-reset" onclick="resetData()"
+            class="bg-red-200 hover:bg-red-300 text-red-950 px-3.5 py-2 text-xs md:text-sm font-bold rounded-xl shadow-lg border border-red-300/80 backdrop-blur-md transition-all hover:scale-105 active:scale-95 flex items-center gap-1.5">
+            🔄 Réinitialiser
+        </button>
+        <button onclick="exportJSON()"
+            class="bg-purple-200 hover:bg-purple-300 text-purple-950 px-3.5 py-2 text-xs md:text-sm font-bold rounded-xl shadow-lg border border-purple-300/80 backdrop-blur-md transition-all hover:scale-105 active:scale-95 flex items-center gap-1.5">
+            📥 Sauvegarder (JSON)
+        </button>
+        <label
+            class="bg-orange-200 hover:bg-orange-300 text-orange-950 px-3.5 py-2 text-xs md:text-sm font-bold rounded-xl shadow-lg border border-orange-300/80 backdrop-blur-md transition-all hover:scale-105 active:scale-95 cursor-pointer flex items-center gap-1.5">
+            📤 Charger (JSON)
+            <input type="file" id="import-json" accept=".json" class="hidden" onchange="importJSON(event)">
+        </label>
+    </div>
+    <!-- MODAL CUSTOM (GLASSMORPHISM) -->
+    <div id="custom-modal"
+        class="hide fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm transition-all">
+        <div
+            class="glass-card max-w-md w-full p-6 rounded-3xl shadow-2xl border border-white/60 text-center flex flex-col items-center gap-4">
+            <div id="modal-icon" class="text-5xl">ℹ️</div>
+            <h3 id="modal-title" class="text-2xl font-black text-blue-950">Message</h3>
+            <p id="modal-message" class="text-gray-700 font-medium text-base leading-relaxed"></p>
+            <div id="modal-actions" class="flex gap-3 w-full justify-center mt-2">
+                <button id="modal-btn-confirm"
+                    class="bg-blue-700 hover:bg-blue-800 text-white font-bold px-6 py-2.5 rounded-xl shadow-md transition-all active:scale-95 flex-1">OK</button>
+                <button id="modal-btn-cancel"
+                    class="hide bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold px-6 py-2.5 rounded-xl shadow-md transition-all active:scale-95 flex-1">Annuler</button>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>
