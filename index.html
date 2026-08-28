@@ -127,6 +127,23 @@
             class="text-3xl font-black text-white mb-6 text-center drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
             Élève</h2>
 
+        <!-- SECTION RAISON DE NON-ÉVALUATION -->
+        <div
+            class="glass-card p-4 rounded-2xl shadow-xl mb-6 flex flex-col md:flex-row items-center justify-between gap-4">
+            <label for="student-reason" class="font-extrabold text-gray-800 flex items-center gap-2 text-base">
+                <span>⚠️</span> Motif de non-évaluation (si applicable) :
+            </label>
+            <select id="student-reason"
+                class="bg-white border border-gray-300 text-gray-900 rounded-xl p-2.5 font-bold shadow-sm focus:ring-blue-500 focus:border-blue-500 cursor-pointer transition-all w-full md:w-auto min-w-[240px]"
+                onchange="updateStudentReason(this.value)">
+                <option value="">-- Aucun (Élève évalué) --</option>
+                <option value="Absent">Absent</option>
+                <option value="Oubli de tenue">Oubli de tenue</option>
+                <option value="Dispense">Dispense</option>
+                <option value="Refus de faire le test">Refus de faire le test</option>
+            </select>
+        </div>
+
         <div class="overflow-x-auto glass-card rounded-2xl shadow-xl mb-6">
             <table class="w-full text-sm md:text-base text-center border-collapse">
                 <thead>
@@ -142,6 +159,16 @@
                     <!-- Rempli par JS -->
                 </tbody>
             </table>
+        </div>
+
+        <!-- ZONE DE COMMENTAIRE -->
+        <div class="glass-card p-5 rounded-2xl shadow-xl mb-6">
+            <label for="student-comment" class="block font-extrabold text-gray-800 mb-2">Observations / Commentaires
+                :</label>
+            <textarea id="student-comment" placeholder="Rédigez un commentaire sur l'élève si vous le souhaitez..."
+                rows="3"
+                class="w-full bg-white/90 border border-gray-300 rounded-xl p-3 text-gray-800 font-medium focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all resize-y min-h-[80px]"
+                oninput="updateStudentComment(this.value)"></textarea>
         </div>
 
         <div class="glass-card p-6 rounded-2xl shadow-xl flex flex-col md:flex-row justify-between items-center gap-6">
@@ -191,12 +218,54 @@
                         <th class="p-4 font-extrabold text-gray-800 text-center">Score Total</th>
                         <th class="p-4 font-extrabold text-gray-800 text-center">Résultat ASNS</th>
                         <th class="p-4 font-extrabold text-gray-800">Groupe prévu</th>
+                        <th class="p-4 font-extrabold text-gray-800">Commentaires / Remarques</th>
                     </tr>
                 </thead>
                 <tbody id="results-tbody" class="divide-y divide-gray-200/80 bg-white/70">
                     <!-- Rempli par JS -->
                 </tbody>
             </table>
+        </div>
+
+        <!-- SECTION STATISTIQUES DE LA CLASSE -->
+        <div id="results-stats" class="glass-card p-6 rounded-2xl shadow-xl mt-6">
+            <h3 class="text-xl font-black text-gray-800 mb-4 border-b border-gray-200/80 pb-3 flex items-center gap-2">
+                📊 Synthèse & Statistiques de la classe
+            </h3>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-center">
+                <div
+                    class="bg-white/80 p-4 rounded-xl shadow-md border border-gray-100/80 flex flex-col justify-center items-center">
+                    <span class="text-xs font-extrabold text-gray-500 uppercase tracking-wider mb-1">Score Moyen
+                        Classe</span>
+                    <div class="text-3xl font-black text-blue-700">
+                        <span id="stat-avg-score">0</span> <span class="text-base text-gray-500 font-bold">/ 48</span>
+                    </div>
+                </div>
+                <div
+                    class="bg-white/80 p-4 rounded-xl shadow-md border border-gray-100/80 flex flex-col justify-center items-center">
+                    <span class="text-xs font-extrabold text-gray-500 uppercase tracking-wider mb-1">Taux de
+                        Validation</span>
+                    <div id="stat-pass-rate" class="text-3xl font-black text-green-600">0 %</div>
+                </div>
+                <div
+                    class="bg-white/80 p-4 rounded-xl shadow-md border border-gray-100/80 flex flex-col justify-center items-center">
+                    <span class="text-xs font-extrabold text-gray-500 uppercase tracking-wider mb-1">Validés vs
+                        Non validés</span>
+                    <div class="flex items-center gap-2 text-2xl font-black">
+                        <span id="stat-passed" class="text-green-700" title="Validés">0</span>
+                        <span class="text-gray-400 font-normal">/</span>
+                        <span id="stat-failed" class="text-red-600" title="Non validés">0</span>
+                    </div>
+                    <span class="text-xs text-gray-500 font-semibold mt-1">(Validés / Non validés)</span>
+                </div>
+                <div
+                    class="bg-white/80 p-4 rounded-xl shadow-md border border-gray-100/80 flex flex-col justify-center items-center">
+                    <span class="text-xs font-extrabold text-gray-500 uppercase tracking-wider mb-1">Ratio de
+                        Validation</span>
+                    <div id="stat-ratio" class="text-2xl font-black text-purple-700">0 / 0</div>
+                    <span class="text-xs text-gray-500 font-semibold mt-1">(Validés / Évalués)</span>
+                </div>
+            </div>
         </div>
     </main>
 
@@ -237,14 +306,19 @@
             const btnHome = document.getElementById('btn-home');
             const btnBackClass = document.getElementById('btn-back-class');
             const btnReset = document.getElementById('btn-reset');
+            const btnSave = document.getElementById('btn-save');
+            const btnLoad = document.getElementById('btn-load');
 
             btnHome.classList.add('hide');
             btnBackClass.classList.add('hide');
 
-            if (btnReset) {
-                if (viewId === 'view-home') btnReset.classList.remove('hide');
-                else btnReset.classList.add('hide');
-            }
+            const isHome = viewId === 'view-home';
+            [btnReset, btnSave, btnLoad].forEach(btn => {
+                if (btn) {
+                    if (isHome) btn.classList.remove('hide');
+                    else btn.classList.add('hide');
+                }
+            });
 
             if (viewId === 'view-class') btnHome.classList.remove('hide');
             if (viewId === 'view-student' || viewId === 'view-results') btnBackClass.classList.remove('hide');
@@ -314,7 +388,9 @@
                             scores: {},
                             total: 0,
                             asns: false,
-                            groupe: ''
+                            groupe: '',
+                            comment: '',
+                            nonEvalReason: ''
                         });
                     }
                 }
@@ -349,11 +425,19 @@
 
             cls.students.forEach(student => {
                 const isEvaluated = Object.keys(student.scores).length > 0;
-                const statusColor = isEvaluated ? (student.asns ? 'bg-green-100/90 border-green-400' : 'bg-orange-100/90 border-orange-400') : 'glass-card border-white/60';
+                let statusColor = 'glass-card border-white/60';
+                let badgeHtml = '';
+
+                if (student.nonEvalReason) {
+                    statusColor = 'bg-amber-100/90 border-amber-400';
+                    badgeHtml = `<span class="mt-1.5 inline-block text-xs px-2.5 py-1 rounded-lg bg-amber-200 text-amber-950 font-bold shadow-sm">${student.nonEvalReason}</span>`;
+                } else if (isEvaluated) {
+                    statusColor = student.asns ? 'bg-green-100/90 border-green-400' : 'bg-orange-100/90 border-orange-400';
+                }
 
                 const card = document.createElement('div');
-                card.className = `p-4 rounded-2xl shadow-md border ${statusColor} backdrop-blur-md cursor-pointer hover:shadow-xl hover:scale-[1.03] transition-all text-center flex flex-col justify-center min-h-[100px]`;
-                card.innerHTML = `<span class="font-bold text-gray-800 block">${student.nom.toUpperCase()}</span><span class="text-gray-600 block">${student.prenom}</span>`;
+                card.className = `p-4 rounded-2xl shadow-md border ${statusColor} backdrop-blur-md cursor-pointer hover:shadow-xl hover:scale-[1.03] transition-all text-center flex flex-col justify-center items-center min-h-[100px]`;
+                card.innerHTML = `<span class="font-bold text-gray-800 block">${student.nom.toUpperCase()}</span><span class="text-gray-600 block">${student.prenom}</span>${badgeHtml}`;
                 card.onclick = () => renderStudent(student.id);
                 container.appendChild(card);
             });
@@ -369,6 +453,9 @@
 
             document.getElementById('student-name').innerText = `${student.nom.toUpperCase()} ${student.prenom}`;
             document.getElementById('student-group').value = student.groupe || '';
+            document.getElementById('student-comment').value = student.comment || '';
+            document.getElementById('student-reason').value = student.nonEvalReason || '';
+            updateReasonSelectStyle(student.nonEvalReason);
 
             const tbody = document.getElementById('eval-grid');
             tbody.innerHTML = '';
@@ -475,6 +562,37 @@
             saveData();
         }
 
+        function updateStudentComment(value) {
+            const cls = appData.classes.find(c => c.id === currentClassId);
+            if (!cls) return;
+            const student = cls.students.find(s => s.id === currentStudentId);
+            if (student) {
+                student.comment = value;
+                saveData();
+            }
+        }
+
+        function updateStudentReason(value) {
+            const cls = appData.classes.find(c => c.id === currentClassId);
+            if (!cls) return;
+            const student = cls.students.find(s => s.id === currentStudentId);
+            if (student) {
+                student.nonEvalReason = value;
+                saveData();
+                updateReasonSelectStyle(value);
+            }
+        }
+
+        function updateReasonSelectStyle(value) {
+            const select = document.getElementById('student-reason');
+            if (!select) return;
+            if (value) {
+                select.className = "bg-amber-100 border-2 border-amber-500 text-amber-950 rounded-xl p-2.5 font-bold shadow-sm cursor-pointer transition-all w-full md:w-auto min-w-[240px]";
+            } else {
+                select.className = "bg-white border border-gray-300 text-gray-900 rounded-xl p-2.5 font-bold shadow-sm focus:ring-blue-500 focus:border-blue-500 cursor-pointer transition-all w-full md:w-auto min-w-[240px]";
+            }
+        }
+
         function updateStudentSummary(student) {
             document.getElementById('student-total').innerText = student.total;
             const asnsSelect = document.getElementById('student-asns');
@@ -515,28 +633,57 @@
             const tbody = document.getElementById('results-tbody');
             tbody.innerHTML = '';
 
+            let totalScoreSum = 0;
+            let evaluatedScoreCount = 0;
+            let passedCount = 0;
+            let failedCount = 0;
+
             cls.students.forEach(student => {
                 const tr = document.createElement('tr');
                 tr.className = "hover:bg-gray-50";
 
                 const isComplete = Object.keys(student.scores).length === 12;
                 const hasManual = (student.asnsManual !== undefined && student.asnsManual !== null);
+                const isEvaluated = isComplete || hasManual;
+
+                if (!student.nonEvalReason && (isEvaluated || Object.keys(student.scores).length > 0)) {
+                    totalScoreSum += student.total || 0;
+                    evaluatedScoreCount++;
+                }
 
                 let asnsBadge = `<span class="px-2 py-1 rounded bg-gray-200 text-xs">Incomplet</span>`;
-                if (isComplete || hasManual) {
-                    asnsBadge = student.asns
-                        ? `<span class="px-2.5 py-1 rounded-lg bg-green-200 text-green-900 font-bold">Validé${hasManual ? ' (M)' : ''}</span>`
-                        : `<span class="px-2.5 py-1 rounded-lg bg-red-200 text-red-900 font-bold">Non validé${hasManual ? ' (M)' : ''}</span>`;
+                if (student.nonEvalReason) {
+                    asnsBadge = `<span class="px-2.5 py-1 rounded-lg bg-amber-200 text-amber-950 font-bold">${student.nonEvalReason}</span>`;
+                } else if (isEvaluated) {
+                    if (student.asns) {
+                        passedCount++;
+                        asnsBadge = `<span class="px-2.5 py-1 rounded-lg bg-green-200 text-green-900 font-bold">Validé${hasManual ? ' (M)' : ''}</span>`;
+                    } else {
+                        failedCount++;
+                        asnsBadge = `<span class="px-2.5 py-1 rounded-lg bg-red-200 text-red-900 font-bold">Non validé${hasManual ? ' (M)' : ''}</span>`;
+                    }
                 }
 
                 tr.innerHTML = `
-                    <td class="p-4 border-b">${student.nom.toUpperCase()} ${student.prenom}</td>
+                    <td class="p-4 border-b font-bold text-gray-900">${student.nom.toUpperCase()} ${student.prenom}</td>
                     <td class="p-4 border-b text-center font-bold text-gray-600">${student.total} / 48</td>
                     <td class="p-4 border-b text-center">${asnsBadge}</td>
                     <td class="p-4 border-b font-medium text-gray-700">${student.groupe || '-'}</td>
+                    <td class="p-4 border-b text-sm text-gray-700 max-w-xs whitespace-pre-wrap">${student.comment ? student.comment : '<span class="text-gray-400 italic">-</span>'}</td>
                 `;
                 tbody.appendChild(tr);
             });
+
+            // Calculs Statistiques
+            const totalAssessed = passedCount + failedCount;
+            const avgScore = evaluatedScoreCount > 0 ? (totalScoreSum / evaluatedScoreCount).toFixed(1) : '0';
+            const passRate = totalAssessed > 0 ? Math.round((passedCount / totalAssessed) * 100) : 0;
+
+            document.getElementById('stat-avg-score').innerText = avgScore;
+            document.getElementById('stat-pass-rate').innerText = `${passRate} %`;
+            document.getElementById('stat-passed').innerText = passedCount;
+            document.getElementById('stat-failed').innerText = failedCount;
+            document.getElementById('stat-ratio').innerText = `${passedCount} / ${totalAssessed}`;
 
             showView('view-results');
         }
@@ -544,30 +691,54 @@
         // --- EXPORT CSV ---
         function exportCSV() {
             const cls = appData.classes.find(c => c.id === currentClassId);
-            let csvContent = "data:text/csv;charset=utf-8,";
-            csvContent += "Nom,Prenom,Total (sur 48),ASNS,Groupe Prevu\n";
+            let csvContent = "\uFEFFNom,Prenom,Total (sur 48),ASNS,Groupe Prevu,Commentaire\n";
 
             cls.students.forEach(student => {
                 const isComplete = Object.keys(student.scores).length === 12;
                 const hasManual = (student.asnsManual !== undefined && student.asnsManual !== null);
-                const asnsStatus = (isComplete || hasManual) ? (student.asns ? "Valide" : "Non valide") : "Incomplet";
+                let asnsStatus = (isComplete || hasManual) ? (student.asns ? "Valide" : "Non valide") : "Incomplet";
+                if (student.nonEvalReason) {
+                    asnsStatus = student.nonEvalReason;
+                }
+                const commentClean = `"${(student.comment || '').replace(/"/g, '""')}"`;
                 const row = [
                     student.nom,
                     student.prenom,
                     student.total,
                     asnsStatus,
-                    student.groupe
+                    student.groupe,
+                    commentClean
                 ].join(",");
                 csvContent += row + "\n";
             });
 
-            const encodedUri = encodeURI(csvContent);
+            // Ligne de synthèse CSV
+            let totalScoreSum = 0, evalScoreCount = 0, passed = 0, failed = 0;
+            cls.students.forEach(s => {
+                if (!s.nonEvalReason && Object.keys(s.scores).length > 0) {
+                    totalScoreSum += s.total || 0;
+                    evalScoreCount++;
+                }
+                const isC = Object.keys(s.scores).length === 12;
+                const hasM = (s.asnsManual !== undefined && s.asnsManual !== null);
+                if (!s.nonEvalReason && (isC || hasM)) {
+                    if (s.asns) passed++; else failed++;
+                }
+            });
+            const totAssessed = passed + failed;
+            const avgSc = evalScoreCount > 0 ? (totalScoreSum / evalScoreCount).toFixed(1) : '0';
+            const pRate = totAssessed > 0 ? Math.round((passed / totAssessed) * 100) : 0;
+            csvContent += `\n"SYNTHESE CLASSE","Score moyen: ${avgSc}/48","Taux validation: ${pRate}%","Valides: ${passed}","Non valides: ${failed}","Ratio: ${passed}/${totAssessed}"\n`;
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
             const link = document.createElement("a");
-            link.setAttribute("href", encodedUri);
+            link.setAttribute("href", url);
             link.setAttribute("download", `Resultats_SavoirNager_${cls.name}.csv`);
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
+            URL.revokeObjectURL(url);
         }
 
         // --- EXPORT / IMPORT JSON COMPLET ---
@@ -700,11 +871,11 @@
             class="bg-red-200 hover:bg-red-300 text-red-950 px-3.5 py-2 text-xs md:text-sm font-bold rounded-xl shadow-lg border border-red-300/80 backdrop-blur-md transition-all hover:scale-105 active:scale-95 flex items-center gap-1.5">
             🔄 Réinitialiser
         </button>
-        <button onclick="exportJSON()"
+        <button id="btn-save" onclick="exportJSON()"
             class="bg-purple-200 hover:bg-purple-300 text-purple-950 px-3.5 py-2 text-xs md:text-sm font-bold rounded-xl shadow-lg border border-purple-300/80 backdrop-blur-md transition-all hover:scale-105 active:scale-95 flex items-center gap-1.5">
             📥 Sauvegarder (JSON)
         </button>
-        <label
+        <label id="btn-load"
             class="bg-orange-200 hover:bg-orange-300 text-orange-950 px-3.5 py-2 text-xs md:text-sm font-bold rounded-xl shadow-lg border border-orange-300/80 backdrop-blur-md transition-all hover:scale-105 active:scale-95 cursor-pointer flex items-center gap-1.5">
             📤 Charger (JSON)
             <input type="file" id="import-json" accept=".json" class="hidden" onchange="importJSON(event)">
