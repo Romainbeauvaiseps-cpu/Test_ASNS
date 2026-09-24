@@ -201,13 +201,19 @@
 
     <!-- VIEW: RESULTS TABLE -->
     <main id="view-results" class="hide p-6 max-w-6xl mx-auto">
-        <div class="flex justify-between items-center mb-6">
+        <div class="flex flex-wrap gap-3 justify-between items-center mb-6">
             <h2 id="results-title" class="text-3xl font-bold text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
                 Résultats</h2>
-            <button onclick="exportCSV()"
-                class="bg-green-600 hover:bg-green-700 text-white px-5 py-3 rounded-xl font-bold shadow-lg transition-all hover:scale-105 border border-white/20">
-                📥 Exporter en CSV
-            </button>
+            <div class="flex flex-wrap gap-2">
+                <button onclick="exportExcel()"
+                    class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl font-bold shadow-lg transition-all hover:scale-105 active:scale-95 border border-white/20 flex items-center gap-1.5 cursor-pointer">
+                    📊 Exporter en Excel (.xlsx)
+                </button>
+                <button onclick="exportCSV()"
+                    class="bg-green-600 hover:bg-green-700 text-white px-4 py-2.5 rounded-xl font-bold shadow-lg transition-all hover:scale-105 active:scale-95 border border-white/20 flex items-center gap-1.5 cursor-pointer">
+                    📥 Exporter en CSV
+                </button>
+            </div>
         </div>
 
         <div class="glass-card rounded-2xl shadow-xl overflow-x-auto">
@@ -688,13 +694,82 @@
             showView('view-results');
         }
 
+        // --- UTILITAIRE D'EXPORT COMPATIBLE PWA / IOS STANDALONE / BUREAU ---
+        function getFileForSharing(blob, filename, preferredMime) {
+            if (!navigator.canShare) return null;
+
+            const mimeCandidates = [preferredMime];
+            if (preferredMime === 'text/csv' || preferredMime === 'application/json') {
+                mimeCandidates.push('text/plain');
+            }
+            mimeCandidates.push('application/octet-stream');
+
+            for (const mime of mimeCandidates) {
+                try {
+                    const testFile = new File([blob], filename, { type: mime });
+                    if (navigator.canShare({ files: [testFile] })) {
+                        return testFile;
+                    }
+                } catch (e) {
+                    // Ignorer et tenter le mimeType suivant
+                }
+            }
+            return null;
+        }
+
+        async function downloadOrShareFile(blob, filename, mimeType) {
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+                (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+            const isStandalone = window.navigator.standalone === true ||
+                window.matchMedia('(display-mode: standalone)').matches;
+            const isMobile = isIOS || /Android|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+            // Sur iOS / mobile / PWA installée en raccourci écran d'accueil : utiliser l'API native de partage
+            if (isStandalone || isMobile) {
+                const fileToShare = getFileForSharing(blob, filename, mimeType);
+                if (fileToShare) {
+                    try {
+                        await navigator.share({
+                            files: [fileToShare],
+                            title: filename
+                        });
+                        return;
+                    } catch (err) {
+                        // Annulation par l'utilisateur du menu de partage
+                        if (err.name === 'AbortError') {
+                            return;
+                        }
+                        console.warn("Échec du partage natif :", err);
+                    }
+                }
+            }
+
+            // Téléchargement standard pour ordinateur de bureau ou fallback
+            try {
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement("a");
+                link.href = url;
+                link.download = filename;
+                link.style.display = 'none';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                setTimeout(() => URL.revokeObjectURL(url), 2000);
+            } catch (e) {
+                console.error("Échec du téléchargement standard :", e);
+                showCustomAlert("Impossible d'exporter le fichier automatiquement sur cet appareil.", "Erreur d'exportation", "⚠️");
+            }
+        }
+
         // --- EXPORT CSV ---
-        function exportCSV() {
+        async function exportCSV() {
             const cls = appData.classes.find(c => c.id === currentClassId);
+            if (!cls) return;
+
             let csvContent = "\uFEFFNom,Prenom,Total (sur 48),ASNS,Groupe Prevu,Commentaire\n";
 
             cls.students.forEach(student => {
-                const isComplete = Object.keys(student.scores).length === 12;
+                const isComplete = Object.keys(student.scores || {}).length === 12;
                 const hasManual = (student.asnsManual !== undefined && student.asnsManual !== null);
                 let asnsStatus = (isComplete || hasManual) ? (student.asns ? "Valide" : "Non valide") : "Incomplet";
                 if (student.nonEvalReason) {
@@ -702,11 +777,11 @@
                 }
                 const commentClean = `"${(student.comment || '').replace(/"/g, '""')}"`;
                 const row = [
-                    student.nom,
-                    student.prenom,
-                    student.total,
+                    student.nom || '',
+                    student.prenom || '',
+                    student.total || 0,
                     asnsStatus,
-                    student.groupe,
+                    student.groupe || '',
                     commentClean
                 ].join(",");
                 csvContent += row + "\n";
@@ -715,11 +790,11 @@
             // Ligne de synthèse CSV
             let totalScoreSum = 0, evalScoreCount = 0, passed = 0, failed = 0;
             cls.students.forEach(s => {
-                if (!s.nonEvalReason && Object.keys(s.scores).length > 0) {
+                if (!s.nonEvalReason && Object.keys(s.scores || {}).length > 0) {
                     totalScoreSum += s.total || 0;
                     evalScoreCount++;
                 }
-                const isC = Object.keys(s.scores).length === 12;
+                const isC = Object.keys(s.scores || {}).length === 12;
                 const hasM = (s.asnsManual !== undefined && s.asnsManual !== null);
                 if (!s.nonEvalReason && (isC || hasM)) {
                     if (s.asns) passed++; else failed++;
@@ -731,26 +806,91 @@
             csvContent += `\n"SYNTHESE CLASSE","Score moyen: ${avgSc}/48","Taux validation: ${pRate}%","Valides: ${passed}","Non valides: ${failed}","Ratio: ${passed}/${totAssessed}"\n`;
 
             const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement("a");
-            link.setAttribute("href", url);
-            link.setAttribute("download", `Resultats_SavoirNager_${cls.name}.csv`);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
+            const safeClassName = (cls.name || 'Classe').replace(/[/\\?%*:|"<>]/g, '_');
+            const filename = `Resultats_SavoirNager_${safeClassName}.csv`;
+            await downloadOrShareFile(blob, filename, 'text/csv');
         }
 
-        // --- EXPORT / IMPORT JSON COMPLET ---
-        function exportJSON() {
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(appData));
-            const downloadAnchorNode = document.createElement('a');
-            downloadAnchorNode.setAttribute("href", dataStr);
-            const date = new Date().toISOString().split('T')[0];
-            downloadAnchorNode.setAttribute("download", `SavoirNager_Backup_${date}.json`);
-            document.body.appendChild(downloadAnchorNode); // requis pour Firefox
-            downloadAnchorNode.click();
-            downloadAnchorNode.remove();
+        // --- EXPORT EXCEL (.XLSX) ---
+        async function exportExcel() {
+            const cls = appData.classes.find(c => c.id === currentClassId);
+            if (!cls) return;
+
+            const rows = [
+                ["Nom", "Prénom", "Total (sur 48)", "Résultat ASNS", "Groupe prévu", "Commentaires / Remarques"]
+            ];
+
+            cls.students.forEach(student => {
+                const isComplete = Object.keys(student.scores || {}).length === 12;
+                const hasManual = (student.asnsManual !== undefined && student.asnsManual !== null);
+                let asnsStatus = (isComplete || hasManual) ? (student.asns ? "Valide" : "Non valide") : "Incomplet";
+                if (student.nonEvalReason) {
+                    asnsStatus = student.nonEvalReason;
+                }
+                rows.push([
+                    (student.nom || '').toUpperCase(),
+                    student.prenom || '',
+                    student.total || 0,
+                    asnsStatus,
+                    student.groupe || '',
+                    student.comment || ''
+                ]);
+            });
+
+            // Lignes de synthèse
+            let totalScoreSum = 0, evalScoreCount = 0, passed = 0, failed = 0;
+            cls.students.forEach(s => {
+                if (!s.nonEvalReason && Object.keys(s.scores || {}).length > 0) {
+                    totalScoreSum += s.total || 0;
+                    evalScoreCount++;
+                }
+                const isC = Object.keys(s.scores || {}).length === 12;
+                const hasM = (s.asnsManual !== undefined && s.asnsManual !== null);
+                if (!s.nonEvalReason && (isC || hasM)) {
+                    if (s.asns) passed++; else failed++;
+                }
+            });
+            const totAssessed = passed + failed;
+            const avgSc = evalScoreCount > 0 ? (totalScoreSum / evalScoreCount).toFixed(1) : '0';
+            const pRate = totAssessed > 0 ? Math.round((passed / totAssessed) * 100) : 0;
+
+            rows.push([]);
+            rows.push(["SYNTHÈSE CLASSE", `Score moyen: ${avgSc}/48`, `Taux validation: ${pRate}%`, `Validés: ${passed}`, `Non validés: ${failed}`, `Ratio: ${passed}/${totAssessed}`]);
+
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.aoa_to_sheet(rows);
+
+            // Ajustement des largeurs de colonnes
+            ws['!cols'] = [
+                { wch: 20 },
+                { wch: 20 },
+                { wch: 15 },
+                { wch: 18 },
+                { wch: 20 },
+                { wch: 45 }
+            ];
+
+            XLSX.utils.book_append_sheet(wb, ws, "Résultats");
+
+            const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+            const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+            const safeClassName = (cls.name || 'Classe').replace(/[/\\?%*:|"<>]/g, '_');
+            const filename = `Resultats_SavoirNager_${safeClassName}.xlsx`;
+            await downloadOrShareFile(blob, filename, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        }
+
+        // --- EXPORT JSON COMPLET ---
+        async function exportJSON() {
+            try {
+                const jsonString = JSON.stringify(appData, null, 2);
+                const blob = new Blob([jsonString], { type: 'application/json;charset=utf-8;' });
+                const date = new Date().toISOString().split('T')[0];
+                const filename = `SavoirNager_Backup_${date}.json`;
+                await downloadOrShareFile(blob, filename, 'application/json');
+            } catch (err) {
+                console.error("Erreur exportJSON:", err);
+                showCustomAlert("Une erreur est survenue lors de l'exportation JSON.", "Erreur", "❌");
+            }
         }
 
         // --- SYSTÈME DE POPUP / MODAL CUSTOM (GLASSMORPHISM) ---
@@ -823,23 +963,218 @@
             });
         }
 
+        // --- NORMALISATION POUR DÉTECTION DES DOUBLONS ---
+        function normalizeStr(str) {
+            return (str || '')
+                .trim()
+                .toLowerCase()
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "")
+                .replace(/\s+/g, ' ');
+        }
+
+        // --- FUSION DES DONNÉES SANS DOUBLONS ---
+        function executeMerge(importedData) {
+            if (!appData.classes) {
+                appData.classes = [];
+            }
+
+            let addedClasses = 0;
+            let addedStudents = 0;
+            let updatedStudents = 0;
+            let duplicatesSkipped = 0;
+
+            importedData.classes.forEach(impClass => {
+                const normClassName = normalizeStr(impClass.name);
+                const existingClass = appData.classes.find(c => normalizeStr(c.name) === normClassName);
+
+                if (!existingClass) {
+                    // Nouvelle classe : on l'ajoute
+                    const newClass = JSON.parse(JSON.stringify(impClass));
+                    if (appData.classes.some(c => c.id === newClass.id)) {
+                        newClass.id = Date.now().toString() + Math.random().toString(36).substr(2, 5);
+                    }
+                    appData.classes.push(newClass);
+                    addedClasses++;
+                    addedStudents += (newClass.students || []).length;
+                } else {
+                    // Classe déjà existante : fusion des élèves sans doublons
+                    if (!Array.isArray(existingClass.students)) {
+                        existingClass.students = [];
+                    }
+
+                    (impClass.students || []).forEach(impStudent => {
+                        const impNom = normalizeStr(impStudent.nom);
+                        const impPrenom = normalizeStr(impStudent.prenom);
+
+                        const existingStudent = existingClass.students.find(s =>
+                            normalizeStr(s.nom) === impNom &&
+                            normalizeStr(s.prenom) === impPrenom
+                        );
+
+                        if (!existingStudent) {
+                            // Nouvel élève dans cette classe
+                            const newStudent = JSON.parse(JSON.stringify(impStudent));
+                            if (existingClass.students.some(s => s.id === newStudent.id)) {
+                                newStudent.id = Date.now().toString() + Math.random().toString(36).substr(2, 5);
+                            }
+                            existingClass.students.push(newStudent);
+                            addedStudents++;
+                        } else {
+                            // Doublon détecté : on ne transmet que les données non présentes localement
+                            let dataUpdated = false;
+
+                            if (!existingStudent.scores) existingStudent.scores = {};
+                            const impScores = impStudent.scores || {};
+
+                            // Ateliers non évalués localement
+                            for (let i = 0; i < 12; i++) {
+                                if (existingStudent.scores[i] === undefined && impScores[i] !== undefined) {
+                                    existingStudent.scores[i] = impScores[i];
+                                    dataUpdated = true;
+                                }
+                            }
+
+                            // Recalcul du total et ASNS si de nouvelles notes ont été intégrées
+                            if (dataUpdated || existingStudent.total === undefined) {
+                                existingStudent.total = Object.values(existingStudent.scores).reduce((a, b) => a + b, 0);
+                                if (existingStudent.asnsManual === undefined || existingStudent.asnsManual === null) {
+                                    existingStudent.asns = computeAutoASNS(existingStudent);
+                                }
+                            }
+
+                            // Groupe de niveau (si non renseigné localement)
+                            if (!existingStudent.groupe && impStudent.groupe) {
+                                existingStudent.groupe = impStudent.groupe;
+                                dataUpdated = true;
+                            } else if (!existingStudent.groupe && Object.keys(existingStudent.scores).length === 12) {
+                                if (existingStudent.total < 24) existingStudent.groupe = "Non nageur";
+                                else if (existingStudent.total < 38) existingStudent.groupe = "Nageur débutant";
+                                else existingStudent.groupe = "Nageur expert";
+                            }
+
+                            // Motif de dispense / absence (si l'élève n'a aucun score et pas de motif local)
+                            if (!existingStudent.nonEvalReason && impStudent.nonEvalReason && Object.keys(existingStudent.scores).length === 0) {
+                                existingStudent.nonEvalReason = impStudent.nonEvalReason;
+                                dataUpdated = true;
+                            }
+
+                            // Commentaire (si vide localement)
+                            if (!existingStudent.comment && impStudent.comment) {
+                                existingStudent.comment = impStudent.comment;
+                                dataUpdated = true;
+                            }
+
+                            // Validation ASNS manuelle (si non définie localement)
+                            if ((existingStudent.asnsManual === undefined || existingStudent.asnsManual === null) &&
+                                impStudent.asnsManual !== undefined && impStudent.asnsManual !== null) {
+                                existingStudent.asnsManual = impStudent.asnsManual;
+                                existingStudent.asns = impStudent.asns;
+                                dataUpdated = true;
+                            }
+
+                            if (dataUpdated) {
+                                updatedStudents++;
+                            } else {
+                                duplicatesSkipped++;
+                            }
+                        }
+                    });
+
+                    // Réorganiser par ordre alphabétique
+                    existingClass.students.sort((a, b) => (a.nom || '').localeCompare(b.nom || ''));
+                }
+            });
+
+            return { addedClasses, addedStudents, updatedStudents, duplicatesSkipped };
+        }
+
+        // --- MODAL DE CHOIX D'IMPORTATION ---
+        function showImportChoiceModal(importedData) {
+            return new Promise((resolve) => {
+                const modal = document.getElementById('import-choice-modal');
+                const descEl = document.getElementById('import-modal-desc');
+                const btnMerge = document.getElementById('btn-import-merge');
+                const btnOverwrite = document.getElementById('btn-import-overwrite');
+                const btnCancel = document.getElementById('btn-import-cancel');
+
+                const fileClasses = (importedData.classes || []).length;
+                const fileStudents = (importedData.classes || []).reduce((acc, c) => acc + (c.students ? c.students.length : 0), 0);
+                const currentClasses = (appData.classes || []).length;
+                const currentStudents = (appData.classes || []).reduce((acc, c) => acc + (c.students ? c.students.length : 0), 0);
+
+                descEl.innerHTML = `
+                    <div class="bg-blue-50/80 p-3.5 rounded-2xl border border-blue-200 text-xs md:text-sm text-blue-950 mb-3 text-left space-y-1">
+                        <div>📁 <strong>Fichier sélectionné :</strong> ${fileClasses} classe${fileClasses > 1 ? 's' : ''}, ${fileStudents} élève${fileStudents > 1 ? 's' : ''}</div>
+                        <div>📱 <strong>Données actuelles :</strong> ${currentClasses} classe${currentClasses > 1 ? 's' : ''}, ${currentStudents} élève${currentStudents > 1 ? 's' : ''}</div>
+                    </div>
+                    <p class="text-gray-700 text-sm md:text-base font-medium">Choisissez le mode d'intégration pour ce fichier :</p>
+                `;
+
+                modal.classList.remove('hide');
+
+                const cleanup = () => {
+                    modal.classList.add('hide');
+                    btnMerge.removeEventListener('click', onMerge);
+                    btnOverwrite.removeEventListener('click', onOverwrite);
+                    btnCancel.removeEventListener('click', onCancel);
+                    modal.removeEventListener('click', onBackdropClick);
+                };
+
+                const onMerge = () => { cleanup(); resolve('merge'); };
+                const onOverwrite = () => { cleanup(); resolve('overwrite'); };
+                const onCancel = () => { cleanup(); resolve(null); };
+                const onBackdropClick = (e) => {
+                    if (e.target === modal) onCancel();
+                };
+
+                btnMerge.addEventListener('click', onMerge);
+                btnOverwrite.addEventListener('click', onOverwrite);
+                btnCancel.addEventListener('click', onCancel);
+                modal.addEventListener('click', onBackdropClick);
+            });
+        }
+
         function importJSON(event) {
             const file = event.target.files[0];
             if (!file) return;
             const reader = new FileReader();
-            reader.onload = function (e) {
+            reader.onload = async function (e) {
                 try {
                     const importedData = JSON.parse(e.target.result);
-                    if (importedData.classes) {
+                    if (!importedData || !Array.isArray(importedData.classes)) {
+                        showCustomAlert("Format de fichier invalide. Le fichier doit contenir un export de données valide.", "Erreur d'importation", "⚠️");
+                        return;
+                    }
+
+                    // Demande à l'utilisateur : Fusionner ou Écraser
+                    const choice = await showImportChoiceModal(importedData);
+                    if (!choice) return;
+
+                    if (choice === 'overwrite') {
                         appData = importedData;
                         saveData();
                         renderHome();
-                        showCustomAlert("Données chargées avec succès !", "Restauration réussie", "📥");
-                    } else {
-                        showCustomAlert("Format de fichier invalide.", "Erreur d'importation", "⚠️");
+                        showCustomAlert("Toutes les données ont été écrasées et remplacées avec succès !", "Restauration réussie", "📥");
+                    } else if (choice === 'merge') {
+                        const summary = executeMerge(importedData);
+                        saveData();
+                        renderHome();
+
+                        let details = [];
+                        if (summary.addedClasses > 0) details.push(`• ${summary.addedClasses} nouvelle(s) classe(s) ajoutée(s)`);
+                        if (summary.addedStudents > 0) details.push(`• ${summary.addedStudents} nouvel/nouveaux élève(s) ajouté(s)`);
+                        if (summary.updatedStudents > 0) details.push(`• ${summary.updatedStudents} évaluation(s) d'élève(s) complétée(s)`);
+                        if (summary.duplicatesSkipped > 0) details.push(`• ${summary.duplicatesSkipped} élève(s) en doublon ignoré(s) (données locales conservées)`);
+
+                        if (details.length === 0) {
+                            details.push("Toutes les données du fichier étaient déjà présentes à l'identique dans l'application. Aucune modification n'a été nécessaire.");
+                        }
+
+                        showCustomAlert(details.join('\n'), "Fusion terminée avec succès", "🔀");
                     }
                 } catch (err) {
-                    showCustomAlert("Erreur lors de la lecture du fichier JSON.", "Erreur d'importation", "❌");
+                    showCustomAlert("Erreur lors de la lecture du fichier JSON : " + (err.message || "Fichier illisible"), "Erreur d'importation", "❌");
                 }
             };
             reader.readAsText(file);
@@ -881,6 +1216,7 @@
             <input type="file" id="import-json" accept=".json" class="hidden" onchange="importJSON(event)">
         </label>
     </div>
+
     <!-- MODAL CUSTOM (GLASSMORPHISM) -->
     <div id="custom-modal"
         class="hide fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm transition-all">
@@ -888,12 +1224,55 @@
             class="glass-card max-w-md w-full p-6 rounded-3xl shadow-2xl border border-white/60 text-center flex flex-col items-center gap-4">
             <div id="modal-icon" class="text-5xl">ℹ️</div>
             <h3 id="modal-title" class="text-2xl font-black text-blue-950">Message</h3>
-            <p id="modal-message" class="text-gray-700 font-medium text-base leading-relaxed"></p>
+            <p id="modal-message" class="text-gray-700 font-medium text-base leading-relaxed whitespace-pre-line"></p>
             <div id="modal-actions" class="flex gap-3 w-full justify-center mt-2">
                 <button id="modal-btn-confirm"
                     class="bg-blue-700 hover:bg-blue-800 text-white font-bold px-6 py-2.5 rounded-xl shadow-md transition-all active:scale-95 flex-1">OK</button>
                 <button id="modal-btn-cancel"
                     class="hide bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold px-6 py-2.5 rounded-xl shadow-md transition-all active:scale-95 flex-1">Annuler</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL IMPORT JSON (CHOIX FUSIONNER OU ÉCRASER) -->
+    <div id="import-choice-modal"
+        class="hide fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm transition-all">
+        <div
+            class="glass-card max-w-lg w-full p-6 md:p-8 rounded-3xl shadow-2xl border border-white/60 text-center flex flex-col items-center gap-5">
+            <div class="text-5xl">📥</div>
+            <div class="w-full">
+                <h3 class="text-2xl font-black text-blue-950 mb-2">Chargement du fichier</h3>
+                <div id="import-modal-desc" class="w-full text-center"></div>
+            </div>
+
+            <div class="flex flex-col gap-3 w-full">
+                <!-- Option Fusionner -->
+                <button id="btn-import-merge"
+                    class="flex items-center gap-3 p-4 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white text-left shadow-md hover:shadow-lg transition-all active:scale-[0.98] border border-blue-400/40 cursor-pointer">
+                    <span class="text-3xl flex-shrink-0">🔀</span>
+                    <div class="flex flex-col">
+                        <span class="font-extrabold text-base md:text-lg">Fusionner avec les données actuelles</span>
+                        <span class="text-xs text-blue-100 font-normal">Conserve vos saisies locales, ajoute les
+                            nouvelles classes/élèves et ignore les doublons.</span>
+                    </div>
+                </button>
+
+                <!-- Option Écraser -->
+                <button id="btn-import-overwrite"
+                    class="flex items-center gap-3 p-4 rounded-2xl bg-amber-600 hover:bg-amber-700 text-white text-left shadow-md hover:shadow-lg transition-all active:scale-[0.98] border border-amber-400/40 cursor-pointer">
+                    <span class="text-3xl flex-shrink-0">⚠️</span>
+                    <div class="flex flex-col">
+                        <span class="font-extrabold text-base md:text-lg">Écraser les données</span>
+                        <span class="text-xs text-amber-100 font-normal">Remplace l'ensemble des données actuelles par
+                            le contenu du fichier sélectionné.</span>
+                    </div>
+                </button>
+
+                <!-- Bouton Annuler -->
+                <button id="btn-import-cancel"
+                    class="mt-1 py-2.5 px-4 rounded-xl bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold text-sm shadow-sm transition-all active:scale-[0.98] cursor-pointer">
+                    Annuler
+                </button>
             </div>
         </div>
     </div>
